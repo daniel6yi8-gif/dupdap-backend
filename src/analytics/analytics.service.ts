@@ -4,6 +4,15 @@ import { Repository } from 'typeorm';
 import { Payment, PaymentNetwork, PaymentStatus } from '../payments/entities/payment.entity';
 import { Settlement, SettlementStatus } from '../settlements/entities/settlement.entity';
 import { CacheService } from '../cache/cache.service';
+import {
+  DateRange,
+  addUtcDays,
+  addUtcMonths,
+  parseIsoDate,
+  resolveDateRange,
+  startOfUtcDay,
+  startOfUtcMonth,
+} from '../common/date-range.util';
 import { DailyPaymentVolume } from './entities/daily-payment-volume.view';
 
 type AnalyticsPeriod = 'daily' | 'monthly';
@@ -18,11 +27,6 @@ interface VolumeOptions {
   period: AnalyticsPeriod;
   dateFrom?: string;
   dateTo?: string;
-}
-
-interface VolumeRange {
-  start: Date;
-  endExclusive: Date;
 }
 
 interface VolumeBreakdownRow {
@@ -109,7 +113,7 @@ export class AnalyticsService {
 
   async getVolume(options: VolumeOptions) {
     const { merchantId, period, scope, dateFrom, dateTo } = options;
-    const range = this.resolveVolumeRange(period, dateFrom, dateTo);
+    const range = resolveDateRange(period, dateFrom, dateTo);
     const cacheKey = this.analyticsCacheKey({
       merchantId: scope === 'admin' ? 'admin' : (merchantId ?? 'unknown'),
       endpoint: 'volume',
@@ -390,49 +394,9 @@ export class AnalyticsService {
       .getRawMany();
   }
 
-  private resolveVolumeRange(
-    period: AnalyticsPeriod,
-    dateFrom?: string,
-    dateTo?: string,
-  ): VolumeRange {
-    if (period === 'daily') {
-      const endInclusive = dateTo
-        ? this.parseIsoDate(dateTo)
-        : this.startOfUtcDay(new Date());
-      const start = dateFrom
-        ? this.parseIsoDate(dateFrom)
-        : this.addUtcDays(endInclusive, -29);
-
-      if (start > endInclusive) {
-        throw new BadRequestException('"dateFrom" must be before or equal to "dateTo"');
-      }
-
-      return {
-        start,
-        endExclusive: this.addUtcDays(endInclusive, 1),
-      };
-    }
-
-    const endMonth = dateTo
-      ? this.startOfUtcMonth(this.parseIsoDate(dateTo))
-      : this.startOfUtcMonth(new Date());
-    const startMonth = dateFrom
-      ? this.startOfUtcMonth(this.parseIsoDate(dateFrom))
-      : this.addUtcMonths(endMonth, -11);
-
-    if (startMonth > endMonth) {
-      throw new BadRequestException('"dateFrom" must be before or equal to "dateTo"');
-    }
-
-    return {
-      start: startMonth,
-      endExclusive: this.addUtcMonths(endMonth, 1),
-    };
-  }
-
   private buildVolumeSeries(
     period: AnalyticsPeriod,
-    range: VolumeRange,
+    range: DateRange,
     rows: VolumeBreakdownRow[],
   ): Array<{ date: string; count: number; volumeUsd: number }> {
     const values = new Map(
@@ -450,7 +414,7 @@ export class AnalyticsService {
       for (
         let cursor = new Date(range.start);
         cursor < range.endExclusive;
-        cursor = this.addUtcDays(cursor, 1)
+        cursor = addUtcDays(cursor, 1)
       ) {
         const label = this.formatDay(cursor);
         const point = values.get(label);
@@ -466,7 +430,7 @@ export class AnalyticsService {
     for (
       let cursor = new Date(range.start);
       cursor < range.endExclusive;
-      cursor = this.addUtcMonths(cursor, 1)
+      cursor = addUtcMonths(cursor, 1)
     ) {
       const label = this.formatMonth(cursor);
       const point = values.get(label);
@@ -543,25 +507,25 @@ export class AnalyticsService {
     to?: string,
   ): { current: RevenueRange; previous: RevenueRange } {
     if (period === 'daily') {
-      const defaultEnd = this.startOfUtcDay(new Date());
-      const currentEnd = to ? this.parseIsoDate(to) : defaultEnd;
+      const defaultEnd = startOfUtcDay(new Date());
+      const currentEnd = to ? parseIsoDate(to) : defaultEnd;
       const currentStart = from
-        ? this.parseIsoDate(from)
-        : this.addUtcDays(currentEnd, -29);
+        ? parseIsoDate(from)
+        : addUtcDays(currentEnd, -29);
 
       if (currentStart > currentEnd) {
         throw new BadRequestException('"from" must be before or equal to "to"');
       }
 
       const spanDays = this.diffUtcDays(currentStart, currentEnd) + 1;
-      const previousEndInclusive = this.addUtcDays(currentStart, -1);
-      const previousStart = this.addUtcDays(currentStart, -spanDays);
+      const previousEndInclusive = addUtcDays(currentStart, -1);
+      const previousStart = addUtcDays(currentStart, -spanDays);
 
       return {
         current: {
           start: currentStart,
           endInclusive: currentEnd,
-          endExclusive: this.addUtcDays(currentEnd, 1),
+          endExclusive: addUtcDays(currentEnd, 1),
           labelStart: this.formatDay(currentStart),
           labelEnd: this.formatDay(currentEnd),
         },
@@ -575,27 +539,27 @@ export class AnalyticsService {
       };
     }
 
-    const defaultEnd = this.startOfUtcMonth(new Date());
+    const defaultEnd = startOfUtcMonth(new Date());
     const currentEnd = to
-      ? this.startOfUtcMonth(this.parseIsoDate(to))
+      ? startOfUtcMonth(parseIsoDate(to))
       : defaultEnd;
     const currentStart = from
-      ? this.startOfUtcMonth(this.parseIsoDate(from))
-      : this.addUtcMonths(currentEnd, -11);
+      ? startOfUtcMonth(parseIsoDate(from))
+      : addUtcMonths(currentEnd, -11);
 
     if (currentStart > currentEnd) {
       throw new BadRequestException('"from" must be before or equal to "to"');
     }
 
     const spanMonths = this.diffUtcMonths(currentStart, currentEnd) + 1;
-    const previousEndInclusive = this.addUtcDays(currentStart, -1);
-    const previousStart = this.addUtcMonths(currentStart, -spanMonths);
+    const previousEndInclusive = addUtcDays(currentStart, -1);
+    const previousStart = addUtcMonths(currentStart, -spanMonths);
 
     return {
       current: {
         start: currentStart,
-        endInclusive: this.addUtcDays(this.addUtcMonths(currentEnd, 1), -1),
-        endExclusive: this.addUtcMonths(currentEnd, 1),
+        endInclusive: addUtcDays(addUtcMonths(currentEnd, 1), -1),
+        endExclusive: addUtcMonths(currentEnd, 1),
         labelStart: this.formatMonth(currentStart),
         labelEnd: this.formatMonth(currentEnd),
       },
@@ -604,7 +568,7 @@ export class AnalyticsService {
         endInclusive: previousEndInclusive,
         endExclusive: currentStart,
         labelStart: this.formatMonth(previousStart),
-        labelEnd: this.formatMonth(this.startOfUtcMonth(previousEndInclusive)),
+        labelEnd: this.formatMonth(startOfUtcMonth(previousEndInclusive)),
       },
     };
   }
@@ -633,7 +597,7 @@ export class AnalyticsService {
       for (
         let cursor = new Date(range.start);
         cursor < range.endExclusive;
-        cursor = this.addUtcDays(cursor, 1)
+        cursor = addUtcDays(cursor, 1)
       ) {
         const label = this.formatDay(cursor);
         const point = values.get(label);
@@ -649,7 +613,7 @@ export class AnalyticsService {
     for (
       let cursor = new Date(range.start);
       cursor < range.endExclusive;
-      cursor = this.addUtcMonths(cursor, 1)
+      cursor = addUtcMonths(cursor, 1)
     ) {
       const label = this.formatMonth(cursor);
       const point = values.get(label);
@@ -700,37 +664,6 @@ export class AnalyticsService {
     const whole = absolute / 1_000_000n;
     const fractional = (absolute % 1_000_000n).toString().padStart(6, '0');
     return `${sign}${whole.toString()}.${fractional}`;
-  }
-
-  private parseIsoDate(value: string): Date {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-      throw new BadRequestException('Dates must use YYYY-MM-DD format');
-    }
-
-    const parsed = new Date(`${value}T00:00:00.000Z`);
-    if (Number.isNaN(parsed.getTime())) {
-      throw new BadRequestException(`Invalid date: ${value}`);
-    }
-
-    return parsed;
-  }
-
-  private startOfUtcDay(value: Date): Date {
-    return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
-  }
-
-  private startOfUtcMonth(value: Date): Date {
-    return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), 1));
-  }
-
-  private addUtcDays(value: Date, days: number): Date {
-    return new Date(
-      Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate() + days),
-    );
-  }
-
-  private addUtcMonths(value: Date, months: number): Date {
-    return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth() + months, 1));
   }
 
   private diffUtcDays(start: Date, end: Date): number {

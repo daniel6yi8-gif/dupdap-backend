@@ -10,6 +10,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { Queue } from 'bull';
 import { randomBytes } from 'crypto';
 import { Repository } from 'typeorm';
+import { DateRange, addUtcDays, resolveDateRange } from '../common/date-range.util';
 import { EmailService } from '../email/email.service';
 import { Merchant, MerchantRole } from '../merchants/entities/merchant.entity';
 import { Payment, PaymentStatus } from '../payments/entities/payment.entity';
@@ -53,11 +54,6 @@ interface ExportMetrics {
     feesUsd: number;
   };
   topMetrics: Array<{ label: string; value: string }>;
-}
-
-interface TimeRange {
-  start: Date;
-  endExclusive: Date;
 }
 
 @Injectable()
@@ -213,7 +209,7 @@ export class AnalyticsExportService {
     const averageBucketVolumeUsd =
       volumeSeries.length > 0 ? totalVolumeUsd / volumeSeries.length : 0;
 
-    const range = this.resolveRange(
+    const range = resolveDateRange(
       period,
       exportRecord.dateFrom ?? undefined,
       exportRecord.dateTo ?? undefined,
@@ -254,7 +250,7 @@ export class AnalyticsExportService {
 
   private async getSettlementSummary(
     exportRecord: AnalyticsExport,
-    range: TimeRange,
+    range: DateRange,
   ): Promise<ExportMetrics['settlementSummary']> {
     const qb = this.settlementsRepo
       .createQueryBuilder('settlement')
@@ -376,5 +372,19 @@ export class AnalyticsExportService {
       .replace(/\\/g, '\\\\')
       .replace(/\(/g, '\\(')
       .replace(/\)/g, '\\)');
+  }
+
+  private formatUsd(value: number): string {
+    return `$${value.toFixed(2)}`;
+  }
+
+  private previousMoment(value: Date, period: AnalyticsPeriod): Date {
+    return period === 'daily' ? addUtcDays(value, -1) : addUtcDays(value, -1);
+  }
+
+  private formatRangeLabel(value: Date, period: AnalyticsPeriod): string {
+    return period === 'daily'
+      ? value.toISOString().slice(0, 10)
+      : value.toISOString().slice(0, 7);
   }
 }
