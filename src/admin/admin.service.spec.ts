@@ -7,7 +7,8 @@ import { Payment } from '../payments/entities/payment.entity';
 import { Settlement } from '../settlements/entities/settlement.entity';
 import { FeeConfig, FeeType } from '../fee-config/entities/fee-config.entity';
 import { FeeHistory, FeeChangeType } from '../fee-config/entities/fee-history.entity';
-import { AuditLog } from './entities/audit-log.entity';
+import { Settlement } from '../settlements/entities/settlement.entity';
+import { AuditLog } from '../audit/entities/audit-log.entity';
 import { FilterService } from '../common/filter.service';
 import { CacheService } from '../cache/cache.service';
 import { StellarMonitorService } from '../stellar/stellar-monitor.service';
@@ -277,8 +278,7 @@ describe('AdminService', () => {
       expectAuditLog({
         actor: 'admin-1',
         action: 'MERCHANT_STATUS_UPDATED',
-        resourceType: 'merchant',
-        resourceId: 'm1',
+        resource: 'merchant:m1',
       });
     });
 
@@ -296,7 +296,7 @@ describe('AdminService', () => {
 
       await service.createAdmin('a@test.com', 'pw', 'Biz', MerchantRole.SUPERADMIN, 'admin-1');
 
-      expectAuditLog({ action: 'ADMIN_CREATED', resourceType: 'admin', resourceId: 'a1' });
+      expectAuditLog({ action: 'ADMIN_CREATED', resource: 'admin:a1' });
     });
 
     it('deleteAdmin writes an audit log', async () => {
@@ -304,7 +304,7 @@ describe('AdminService', () => {
 
       await service.deleteAdmin('a1', MerchantRole.SUPERADMIN, 'admin-1');
 
-      expectAuditLog({ action: 'ADMIN_DELETED', resourceType: 'admin', resourceId: 'a1' });
+      expectAuditLog({ action: 'ADMIN_DELETED', resource: 'admin:a1' });
     });
 
     it('toggleSandboxMode writes an audit log', async () => {
@@ -313,7 +313,7 @@ describe('AdminService', () => {
 
       await service.toggleSandboxMode('m1', true, 'admin-1');
 
-      expectAuditLog({ action: 'SANDBOX_MODE_TOGGLED', resourceType: 'merchant', resourceId: 'm1' });
+      expectAuditLog({ action: 'SANDBOX_MODE_TOGGLED', resource: 'merchant:m1' });
     });
 
     it('resetSandboxData writes an audit log', async () => {
@@ -322,7 +322,7 @@ describe('AdminService', () => {
 
       await service.resetSandboxData('m1', 'admin-1');
 
-      expectAuditLog({ action: 'DATA_PURGED', resourceType: 'merchant', resourceId: 'm1' });
+      expectAuditLog({ action: 'DATA_PURGED', resource: 'merchant:m1' });
     });
 
     it('restoreRecord writes an audit log', async () => {
@@ -330,7 +330,7 @@ describe('AdminService', () => {
 
       await service.restoreRecord('merchants', 'm1', 'admin-1');
 
-      expectAuditLog({ action: 'RECORD_RESTORED', resourceType: 'merchants', resourceId: 'm1' });
+      expectAuditLog({ action: 'RECORD_RESTORED', resource: 'merchants:m1' });
     });
 
     it('deleteRecord writes a soft-delete audit log', async () => {
@@ -338,7 +338,7 @@ describe('AdminService', () => {
 
       await service.deleteRecord('merchants', 'm1', false, MerchantRole.ADMIN, 'admin-1');
 
-      expectAuditLog({ action: 'RECORD_DELETED', resourceType: 'merchants', resourceId: 'm1' });
+      expectAuditLog({ action: 'RECORD_DELETED', resource: 'merchants:m1' });
     });
 
     it('deleteRecord writes a hard-delete audit log', async () => {
@@ -346,7 +346,7 @@ describe('AdminService', () => {
 
       await service.deleteRecord('merchants', 'm1', true, MerchantRole.SUPERADMIN, 'admin-1');
 
-      expectAuditLog({ action: 'RECORD_HARD_DELETED', resourceType: 'merchants', resourceId: 'm1' });
+      expectAuditLog({ action: 'RECORD_HARD_DELETED', resource: 'merchants:m1' });
     });
   });
 });

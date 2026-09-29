@@ -24,6 +24,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { IpAllowlistGuard } from '../security/ip-allowlist.guard';
+import { Auditable } from '../audit/decorators/auditable.decorator';
 
 @ApiTags('admin')
 @ApiBearerAuth()
@@ -49,6 +50,7 @@ export class AdminController {
   }
 
   @Patch('merchants/:id/status')
+  @Auditable({ action: 'MERCHANT_STATUS_UPDATED', resource: 'merchant' })
   @ApiOperation({ summary: 'Update merchant status' })
   updateStatus(
     @Param('id') id: string,
@@ -59,6 +61,7 @@ export class AdminController {
   }
 
   @Patch('merchants/bulk/status')
+  @Auditable({ action: 'MERCHANT_STATUS_BULK_UPDATED', resource: 'merchant' })
   @ApiOperation({ summary: 'Bulk update merchant status' })
   bulkUpdateStatus(
     @Body('ids') ids: string[],
@@ -81,6 +84,7 @@ export class AdminController {
   }
 
   @Patch('fees')
+  @Auditable({ action: 'FEE_UPDATED', resource: 'fee_config' })
   @ApiOperation({ summary: 'Update a global fee rate' })
   updateFee(
     @Body() dto: UpdateFeeDto,
@@ -126,6 +130,7 @@ export class AdminController {
   // ── Admin User Management with 2FA (#707) ──────────────────────────────────
 
   @Post('users')
+  @Auditable({ action: 'ADMIN_CREATED', resource: 'admin' })
   @ApiOperation({ summary: 'Create a new admin user (SUPERADMIN only)' })
   createAdmin(
     @Body() dto: { email: string; password: string; businessName: string },
@@ -141,6 +146,7 @@ export class AdminController {
   }
 
   @Delete('users/:id')
+  @Auditable({ action: 'ADMIN_DELETED', resource: 'admin' })
   @ApiOperation({ summary: 'Delete an admin user (SUPERADMIN only)' })
   deleteAdmin(
     @Param('id') id: string,
@@ -176,6 +182,7 @@ export class AdminController {
   // ── Sandbox Environment Management (#708) ──────────────────────────────────
 
   @Patch('merchants/:id/sandbox')
+  @Auditable({ action: 'SANDBOX_MODE_TOGGLED', resource: 'merchant' })
   @ApiOperation({ summary: 'Enable or disable sandbox mode for a merchant' })
   toggleSandboxMode(
     @Param('id') id: string,
@@ -186,6 +193,7 @@ export class AdminController {
   }
 
   @Post('merchants/:id/sandbox/reset')
+  @Auditable({ action: 'DATA_PURGED', resource: 'merchant' })
   @ApiOperation({ summary: 'Delete all sandbox payment data for a merchant' })
   resetSandboxData(
     @Param('id') id: string,
@@ -243,6 +251,7 @@ export class AdminController {
   // ── Generic Soft/Hard Delete and Restore ───────────────────────────────────
 
   @Post(':entity/:id/restore')
+  @Auditable({ action: 'RECORD_RESTORED', resource: 'record' })
   @ApiOperation({ summary: 'Restore a soft-deleted record' })
   restoreRecord(
     @Param('entity') entity: string,
@@ -253,6 +262,7 @@ export class AdminController {
   }
 
   @Delete(':entity/:id')
+  @Auditable({ action: 'RECORD_DELETED', resource: 'record' })
   @ApiOperation({ summary: 'Soft or hard delete a record' })
   deleteRecord(
     @Param('entity') entity: string,

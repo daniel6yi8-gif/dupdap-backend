@@ -15,6 +15,7 @@ import { AdminGuard } from '../auth/guards/admin.guard';
 import { SettlementsService } from './settlements.service';
 import { AdminSettlementsQueryDto } from './dto/admin-settlements-query.dto';
 import { Request } from 'express';
+import { Auditable } from '../audit/decorators/auditable.decorator';
 
 @Controller('admin/settlements')
 @UseGuards(JwtAuthGuard, AdminGuard)
@@ -28,6 +29,7 @@ export class AdminSettlementsController {
 
   @Post(':id/retry')
   @HttpCode(HttpStatus.OK)
+  @Auditable({ action: 'SETTLEMENT_RETRIED', resource: 'settlement' })
   async retrySettlement(@Param('id') id: string) {
     const result = await this.settlementsService.retrySettlement(id);
     if (!result.success) {
@@ -38,6 +40,7 @@ export class AdminSettlementsController {
 
   @Post(':id/approve')
   @HttpCode(HttpStatus.OK)
+  @Auditable({ action: 'SETTLEMENT_APPROVED', resource: 'settlement' })
   async approveSettlement(
     @Param('id') id: string,
     @Req() req: Request & { user: { merchantId: string } },

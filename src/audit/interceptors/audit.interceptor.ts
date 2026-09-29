@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { AuditService } from '../audit.service';
 import { AUDITABLE_KEY, AuditableOptions } from '../decorators/auditable.decorator';
+import { redactSensitive } from '../utils/redact.util';
 
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
@@ -23,13 +24,13 @@ export class AuditInterceptor implements NestInterceptor {
     }
 
     const request = context.switchToHttp().getRequest();
-    const actor = request.user?.id || request.user?.sub || request.user?.email || 'anonymous';
+    const actor = request.user?.id || request.user?.sub || request.user?.merchantId || request.user?.email || 'anonymous';
     const ip = request.ip || request.headers['x-forwarded-for'] || request.socket?.remoteAddress || 'unknown';
 
     const before = {
-      body: request.body,
-      query: request.query,
-      params: request.params,
+      body: redactSensitive(request.body),
+      query: redactSensitive(request.query),
+      params: redactSensitive(request.params),
     };
 
     return next.handle().pipe(
@@ -40,7 +41,7 @@ export class AuditInterceptor implements NestInterceptor {
             action: auditableOptions.action,
             resource: auditableOptions.resource,
             before,
-            after: data,
+            after: redactSensitive(data),
             ip,
           }).catch(err => console.error('Failed to write audit log:', err));
         },

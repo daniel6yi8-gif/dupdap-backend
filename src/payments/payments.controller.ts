@@ -20,6 +20,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { Scopes } from '../auth/decorators/scopes.decorator';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { IdempotencyInterceptor } from './idempotency.interceptor';
+import { Auditable } from '../audit/decorators/auditable.decorator';
 
 @ApiTags('payments')
 @ApiBearerAuth('bearer')
@@ -31,6 +32,7 @@ export class PaymentsController {
   @Post()
   @Scopes('payments:write')
   @UseInterceptors(IdempotencyInterceptor)
+  @Auditable({ action: 'PAYMENT_CREATED', resource: 'payment' })
   @ApiOperation({ summary: 'Create a payment request' })
   @ApiOkResponse({ description: 'Payment created' })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid JWT' })
@@ -43,6 +45,7 @@ export class PaymentsController {
   @Post('batch')
   @Scopes('payments:write')
   @UseInterceptors(IdempotencyInterceptor)
+  @Auditable({ action: 'PAYMENT_BATCH_CREATED', resource: 'payment' })
   @ApiOperation({
     summary: 'Create up to 20 payment requests in a single contract invocation',
     description:
@@ -96,6 +99,7 @@ export class PaymentsController {
 
   @Post(':id/refund')
   @Scopes('payments:write')
+  @Auditable({ action: 'PAYMENT_REFUNDED', resource: 'payment' })
   @ApiOperation({ summary: 'Initiate a refund for a settled payment' })
   @ApiParam({ name: 'id', description: 'Payment UUID' })
   @ApiOkResponse({ description: 'Refund successful' })

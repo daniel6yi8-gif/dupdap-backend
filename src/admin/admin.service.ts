@@ -14,7 +14,7 @@ import { Payment } from '../payments/entities/payment.entity';
 import { Settlement, SettlementStatus } from '../settlements/entities/settlement.entity';
 import { FeeConfig, FeeType } from '../fee-config/entities/fee-config.entity';
 import { FeeHistory, FeeChangeType } from '../fee-config/entities/fee-history.entity';
-import { AuditLog } from './entities/audit-log.entity';
+import { AuditLog } from '../audit/entities/audit-log.entity';
 import { FilterService } from '../common/filter.service';
 import { PaginationDto, PaginatedResponseDto } from '../common/dto/pagination.dto';
 import { CacheService } from '../cache/cache.service';
@@ -56,6 +56,8 @@ export class AdminService {
     resourceId?: string | null;
     details?: Record<string, any> | null;
   }): Promise<void> {
+    // Map admin-shaped fields onto the migrated audit_logs schema
+    // (actor, action, resource, before, after, ip) — see CreateAuditLogTable.
     const log = this.auditLogRepo.create({
       actor: entry.actor ?? 'system',
       action: entry.action,
@@ -415,7 +417,7 @@ export class AdminService {
     pagination: PaginationDto,
     exportCsv = false,
   ): Promise<PaginatedResponseDto<AuditLog> | string> {
-    const allowedFields = ['actor', 'action', 'resourceType', 'createdAt'];
+    const allowedFields = ['actor', 'action', 'resource', 'createdAt'];
     const where = this.filterService.buildWhereConditions(query, allowedFields);
 
     if (exportCsv) {
@@ -437,7 +439,7 @@ export class AdminService {
   }
 
   private toCsv(data: AuditLog[]): string {
-    const columns = ['id', 'actor', 'action', 'resourceType', 'resourceId', 'details', 'createdAt'];
+    const columns = ['id', 'actor', 'action', 'resource', 'before', 'after', 'ip', 'createdAt'];
     const headerLine = columns.map(c => this.csvField(c)).join(',');
 
     if (data.length === 0) return headerLine + '\n';
@@ -673,7 +675,7 @@ export class AdminService {
   async getAccessControlReport(from: Date, to: Date) {
     return this.auditLogRepo
       .createQueryBuilder('log')
-      .select(['log.id', 'log.actor', 'log.action', 'log.resourceType', 'log.resourceId', 'log.createdAt'])
+      .select(['log.id', 'log.actor', 'log.action', 'log.resource', 'log.createdAt'])
       .where('log.createdAt BETWEEN :from AND :to', { from, to })
       .orderBy('log.createdAt', 'DESC')
       .getMany();
