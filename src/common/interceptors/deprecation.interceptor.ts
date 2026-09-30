@@ -10,6 +10,11 @@ import { DEPRECATED_METADATA_KEY, DeprecatedOptions } from '../decorators/deprec
  *   - Sunset: <ISO date>
  *   - Link: <migration URL>; rel="successor-version"
  *   - X-Deprecation-Notice: <human-readable message>
+ *
+ * Not registered globally (see main.ts): with no @Deprecated() handler in the
+ * app the reflector lookup runs on every request and can never match. Register
+ * it per-handler (`@UseInterceptors(DeprecationInterceptor)`) or globally once
+ * the first deprecated endpoint exists.
  */
 @Injectable()
 export class DeprecationInterceptor implements NestInterceptor {
