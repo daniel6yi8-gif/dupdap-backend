@@ -9,7 +9,6 @@ import { AppModule } from './app.module';
 import { readTelemetryConfig, shutdownTelemetry, startTelemetry } from './telemetry/telemetry';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { VersioningInterceptor } from './common/interceptors/versioning.interceptor';
-import { DeprecationInterceptor } from './common/interceptors/deprecation.interceptor';
 import { AllExceptionsFilter } from './core/filters/all-exceptions.filter';
 import { SentryService } from './sentry/sentry.service';
 import { getCorrelationId } from './common/correlation-id.context';
@@ -139,10 +138,15 @@ async function bootstrap(): Promise<void> {
   app.useGlobalFilters(new AllExceptionsFilter(app.get(HttpAdapterHost), config));
   app.useGlobalInterceptors(
     new VersioningInterceptor(),
-    new DeprecationInterceptor(app.get(Reflector)),
     new LoggingInterceptor(),
     new ClassSerializerInterceptor(app.get(Reflector)),
   );
+  // DeprecationInterceptor is intentionally NOT registered globally: it runs a
+  // reflector lookup on every request for the `deprecated` metadata key, and no
+  // handler is annotated with @Deprecated() yet. Register it with
+  // `app.useGlobalInterceptors(new DeprecationInterceptor(app.get(Reflector)))`
+  // (or `@UseInterceptors(DeprecationInterceptor)`) in the same commit that adds
+  // the first @Deprecated() endpoint.
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('DupDub API')

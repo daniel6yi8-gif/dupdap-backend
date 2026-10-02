@@ -328,4 +328,27 @@ export class PaymentsService {
     if (!payment) throw new NotFoundException('Payment not found');
     return payment;
   }
+
+  /**
+   * Lookup backing the unauthenticated GET /pay/:reference page. Deliberately
+   * un-scoped by merchant: the reference is the only credential the customer
+   * has, and the caller maps the result to PublicPaymentViewDto which drops
+   * every merchant-identifying and PII field.
+   */
+  async findByReference(reference: string): Promise<Payment> {
+    const payment = await this.paymentsRepo.findOne({ where: { reference } });
+    if (!payment) throw new NotFoundException('Payment not found');
+    return payment;
+  }
+
+  async getStats(merchantId: string) {
+    return this.paymentsRepo
+      .createQueryBuilder('payment')
+      .select('payment.status', 'status')
+      .addSelect('COUNT(*)', 'count')
+      .addSelect('SUM(payment.amountUsd)', 'totalUsd')
+      .where('payment.merchantId = :merchantId', { merchantId })
+      .groupBy('payment.status')
+      .getRawMany();
+  }
 }

@@ -16,7 +16,13 @@ export interface DeprecatedOptions {
  * The DeprecationInterceptor reads this metadata and injects
  * RFC 8594 Deprecation / Sunset / Link / X-Deprecation-Notice headers.
  *
+ * NOTE: the interceptor is not registered globally (see main.ts) because no
+ * endpoint was annotated yet. Apply it to a handler with
+ * `@UseInterceptors(DeprecationInterceptor)`, or register it globally, in the
+ * same change that adds the first `@Deprecated()` handler.
+ *
  * @example
+ * @UseInterceptors(DeprecationInterceptor)
  * @Deprecated({ sunsetDate: '2027-01-01', link: '/docs/api-versioning', message: 'Use v2.' })
  * @Get('old-endpoint')
  * oldEndpoint() {}

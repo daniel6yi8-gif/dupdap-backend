@@ -298,5 +298,4 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
       await this.redis.del(nsKey);
     }
   }
-  }
 }
