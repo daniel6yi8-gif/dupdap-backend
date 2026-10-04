@@ -53,7 +53,7 @@ export class WebhooksService {
   async remove(id: string, merchantId: string) {
     const webhook = await this.webhooksRepo.findOne({ where: { id, merchantId } });
     if (!webhook) {
-      throw new NotFoundException(`Webhook ${id} not found for merchant ${merchantId}`);
+      throw new NotFoundException('Webhook not found');
     }
     await this.webhooksRepo.remove(webhook);
     return webhook;
